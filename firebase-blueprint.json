@@ -1,0 +1,55 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "User profile with vault metadata and optional role flags",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "email": { "type": "string" },
+        "role": { "type": "string" },
+        "vaultMetadata": { "type": "object" },
+        "updatedAt": { "type": "number" }
+      },
+      "required": ["userId"]
+    },
+    "EncryptedVaultRecord": {
+      "title": "EncryptedVaultRecord",
+      "description": "Client-side AES-GCM encrypted journal record. Ciphertext and salt only.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "timestamp": { "type": "number" },
+        "salt": { "type": "string" },
+        "iv": { "type": "string" },
+        "ciphertext": { "type": "string" },
+        "embeddingVector": { "type": "array" }
+      },
+      "required": ["id", "timestamp", "salt", "iv", "ciphertext"]
+    },
+    "AdminSystemMetric": {
+      "title": "AdminSystemMetric",
+      "description": "Aggregate non-sensitive system stats accessible only to authorized admins",
+      "type": "object",
+      "properties": {
+        "totalRegisteredUsers": { "type": "number" },
+        "totalEncryptedRecords": { "type": "number" },
+        "lastUpdated": { "type": "number" }
+      },
+      "required": ["totalRegisteredUsers", "totalEncryptedRecords"]
+    },
+    "AdminNotificationLog": {
+      "title": "AdminNotificationLog",
+      "description": "Sanitized server-side trigger log without plain text journal content",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "timestamp": { "type": "number" },
+        "alertType": { "type": "string" },
+        "severity": { "type": "string" },
+        "sanitizedAction": { "type": "string" }
+      },
+      "required": ["id", "timestamp", "alertType", "severity"]
+    }
+  }
+}

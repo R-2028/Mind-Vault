@@ -1,0 +1,61 @@
+@import "tailwindcss";
+
+:root {
+  color-scheme: dark;
+}
+
+body {
+  background-color: transparent;
+  color: #f3f4f6;
+  min-height: 100vh;
+  overflow-x: hidden;
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+}
+
+/* Glassmorphic Panel & Modal Styling */
+.bg-neutral-900,
+.bg-neutral-900\/80,
+.bg-neutral-900\/60,
+.bg-neutral-900\/70,
+.bg-neutral-900\/50,
+.bg-neutral-950,
+.bg-neutral-950\/90,
+.bg-neutral-950\/80,
+.bg-neutral-950\/70,
+.bg-neutral-950\/60 {
+  background: rgba(15, 7, 26, 0.65) !important;
+  backdrop-filter: blur(16px) !important;
+  -webkit-backdrop-filter: blur(16px) !important;
+}
+
+.border-neutral-800,
+.border-neutral-850,
+.border-neutral-700\/80,
+.border-neutral-700\/60,
+.border-neutral-900 {
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+/* Glassmorphism utility */
+.glass-panel {
+  background: rgba(15, 7, 26, 0.65) !important;
+  backdrop-filter: blur(16px) !important;
+  -webkit-backdrop-filter: blur(16px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+
+/* Custom Scrollbar for Obsidian Theme */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: rgba(6, 1, 14, 0.6);
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(168, 85, 247, 0.25);
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(217, 70, 239, 0.45);
+}

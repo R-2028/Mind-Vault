@@ -1,0 +1,12 @@
+{
+  "name": "Mind Vault",
+  "description": "Privacy-first AI second brain and journaling platform with client-side zero-knowledge encryption and local vector embeddings.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone",
+    "geolocation"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

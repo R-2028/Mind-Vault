@@ -1,0 +1,59 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper: Check if user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // Helper: Check if authenticated user is the resource owner
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // Helper: Check if user has admin claim or is in admin roles document
+    function isAdmin() {
+      return isAuthenticated() && (
+        request.auth.token.admin == true ||
+        request.auth.token.role == 'admin' ||
+        (exists(/databases/$(database)/documents/roles/$(request.auth.uid)) &&
+         get(/databases/$(database)/documents/roles/$(request.auth.uid)).data.role == 'admin')
+      );
+    }
+
+    // User profile & vault metadata isolation: ONLY the owner can read and write
+    match /users/{userId} {
+      allow read, write: if isOwner(userId);
+      
+      // User encrypted vault subcollection:
+      // ZERO-KNOWLEDGE POLICY: ONLY the owner can read/write ciphertext.
+      // Admins CANNOT read decrypted journal data or vault records under any circumstances.
+      match /encrypted_vault/{recordId} {
+        allow read, write: if isOwner(userId);
+      }
+    }
+
+    // Admin-only roles lookup collection
+    match /roles/{userId} {
+      allow read: if isOwner(userId) || isAdmin();
+      allow write: if isAdmin();
+    }
+
+    // Admin aggregate system metrics & notification logs
+    // Strictly limited to sanitized operational metrics; NO user journal plaintext or ciphertext
+    match /admin_metrics/{metricId} {
+      allow read, write: if isAdmin();
+    }
+
+    match /admin_notification_logs/{logId} {
+      allow read, write: if isAdmin();
+    }
+    
+    // Default zero insecure access
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
+

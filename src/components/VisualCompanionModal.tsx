@@ -22,6 +22,14 @@ import {
   RefreshCw,
   PlusCircle,
   Shield,
+  RotateCcw,
+  Compass,
+  Smile,
+  Terminal,
+  Copy,
+  Check,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react';
 import {
   MultimodalCompanionResponse,
@@ -53,6 +61,12 @@ export const VisualCompanionModal: React.FC<VisualCompanionModalProps> = ({
   const [messages, setMessages] = useState<CompanionMessage[]>([]);
   const [isSpeakingId, setIsSpeakingId] = useState<string | null>(null);
   const [saveSuccessMsg, setSaveSuccessMsg] = useState<string | null>(null);
+  const [previousMood, setPreviousMood] = useState<string | null>(null);
+  const [recentResponses, setRecentResponses] = useState<string[]>([]);
+  const [recentSuggestions, setRecentSuggestions] = useState<string[]>([]);
+  const [showDebugDrawer, setShowDebugDrawer] = useState(false);
+  const [latestDebugPayload, setLatestDebugPayload] = useState<any>(null);
+  const [copiedDebug, setCopiedDebug] = useState(false);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -176,7 +190,7 @@ export const VisualCompanionModal: React.FC<VisualCompanionModalProps> = ({
     return null;
   };
 
-  const handleSendMessage = async (e?: React.FormEvent) => {
+  const handleSendMessage = async (e?: React.FormEvent, explicitMessage?: string) => {
     if (e) e.preventDefault();
     if (isSending) return;
 
@@ -184,13 +198,15 @@ export const VisualCompanionModal: React.FC<VisualCompanionModalProps> = ({
       stopDictation();
     }
 
-    // Capture snapshot if camera is active, or use existing snapshot
-    let snapshotToUse = capturedSnapshot;
-    if (isCameraActive && !snapshotToUse) {
+    // Always capture fresh live snapshot if camera is active to eliminate cached frames
+    let snapshotToUse: string | null = null;
+    if (isCameraActive) {
       snapshotToUse = takeSnapshot();
+    } else if (capturedSnapshot) {
+      snapshotToUse = capturedSnapshot;
     }
 
-    const currentMsg = messageInput.trim();
+    const currentMsg = (explicitMessage !== undefined ? explicitMessage : messageInput).trim();
     if (!currentMsg && !snapshotToUse) {
       return;
     }
@@ -198,7 +214,7 @@ export const VisualCompanionModal: React.FC<VisualCompanionModalProps> = ({
     const userMessageObj: CompanionMessage = {
       id: `user-${Date.now()}`,
       role: 'user',
-      text: currentMsg || '[Visual check-in with camera snapshot]',
+      text: currentMsg || '[Visual check-in with live camera snapshot]',
       timestamp: Date.now(),
       snapshotUrl: snapshotToUse || undefined,
     };
@@ -217,16 +233,73 @@ export const VisualCompanionModal: React.FC<VisualCompanionModalProps> = ({
       const companionResponse: MultimodalCompanionResponse = await sendMultimodalCheckIn(
         snapshotToUse,
         currentMsg,
-        history
+        history,
+        previousMood,
+        recentResponses,
+        recentSuggestions
       );
+
+      const detectedMood =
+        companionResponse.detected_mood ||
+        companionResponse.visual_observations?.detected_mood ||
+        companionResponse.debug_info?.detected_mood ||
+        'Calm/Content';
+
+      // Update previous mood state
+      setPreviousMood(detectedMood);
+
+      if (companionResponse.companion_response) {
+        setRecentResponses((prev) => [
+          ...prev.slice(-4),
+          companionResponse.companion_response,
+        ]);
+      }
+
+      if (companionResponse.actionable_decompression?.suggestion) {
+        setRecentSuggestions((prev) => [
+          ...prev.slice(-4),
+          companionResponse.actionable_decompression.suggestion,
+        ]);
+      }
+
+      // Populate Live Debug Inspector Payload
+      setLatestDebugPayload({
+        detected_mood: detectedMood,
+        confidence: companionResponse.confidence || companionResponse.visual_observations?.confidence || 'HIGH',
+        previous_mood: previousMood,
+        mood_changed: Boolean(previousMood && previousMood !== detectedMood),
+        physical_markers:
+          companionResponse.physical_markers || companionResponse.visual_observations?.physical_markers || {
+            eyes: 'Alert',
+            mouth: 'Neutral',
+            brow: 'Calm',
+            posture: 'Upright',
+          },
+        model_used: companionResponse.debug_info?.model_used || 'gemini-3.7-flash',
+        observation_angle: companionResponse.debug_info?.observation_angle || 'Physical Markers',
+        tracked_recent_responses: [...recentResponses.slice(-2), companionResponse.companion_response],
+        tracked_recent_suggestions: [
+          ...recentSuggestions.slice(-2),
+          companionResponse.actionable_decompression?.suggestion,
+        ].filter(Boolean),
+        raw_response: companionResponse,
+        timestamp: new Date().toLocaleTimeString(),
+      });
 
       const assistantMessageObj: CompanionMessage = {
         id: `assistant-${Date.now()}`,
         role: 'assistant',
         text: companionResponse.companion_response,
         timestamp: Date.now(),
-        visualObservation: companionResponse.visual_observations,
+        visualObservation: {
+          ...companionResponse.visual_observations,
+          detected_mood: detectedMood,
+          confidence: companionResponse.confidence || companionResponse.visual_observations?.confidence,
+          physical_markers:
+            companionResponse.physical_markers || companionResponse.visual_observations?.physical_markers,
+        },
         decompression: companionResponse.actionable_decompression,
+        debugInfo: companionResponse.debug_info,
       };
 
       setMessages((prev) => [...prev, assistantMessageObj]);
@@ -252,7 +325,6 @@ export const VisualCompanionModal: React.FC<VisualCompanionModalProps> = ({
       ]);
     } finally {
       setIsSending(false);
-      // Keep or reset snapshot for next message
       setCapturedSnapshot(null);
     }
   };
@@ -321,6 +393,25 @@ export const VisualCompanionModal: React.FC<VisualCompanionModalProps> = ({
           </div>
 
           <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setShowDebugDrawer((prev) => !prev)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border transition shadow-sm ${
+                showDebugDrawer
+                  ? 'bg-amber-950/80 border-amber-600 text-amber-300 ring-1 ring-amber-500/40'
+                  : 'bg-neutral-900 border-neutral-700 text-neutral-300 hover:text-white hover:bg-neutral-800'
+              }`}
+              title="Inspect raw Gemini API return payload and anti-repetition variables"
+            >
+              <Terminal className="w-3.5 h-3.5 text-amber-400" />
+              <span className="hidden sm:inline">Debug Fields</span>
+              {showDebugDrawer ? (
+                <ChevronUp className="w-3 h-3 text-amber-400" />
+              ) : (
+                <ChevronDown className="w-3 h-3 text-neutral-400" />
+              )}
+            </button>
+
             {messages.length > 0 && (
               <button
                 onClick={handleSaveCheckInToVault}
@@ -341,6 +432,92 @@ export const VisualCompanionModal: React.FC<VisualCompanionModalProps> = ({
             </button>
           </div>
         </div>
+
+        {/* Expandable Debug Inspector Panel */}
+        {showDebugDrawer && (
+          <div className="px-5 py-3.5 border-b border-amber-900/50 bg-neutral-950 text-neutral-200 text-xs space-y-3 animate-fade-in max-h-60 overflow-y-auto font-mono">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-amber-400 font-bold">
+                <Terminal className="w-4 h-4" />
+                <span>Gemini Visual AI Debug Inspector & Variables</span>
+              </div>
+              <div className="flex items-center gap-2">
+                {latestDebugPayload && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      navigator.clipboard.writeText(JSON.stringify(latestDebugPayload, null, 2));
+                      setCopiedDebug(true);
+                      setTimeout(() => setCopiedDebug(false), 2000);
+                    }}
+                    className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-neutral-900 border border-neutral-700 text-neutral-300 hover:text-white text-[11px]"
+                  >
+                    {copiedDebug ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3 text-neutral-400" />}
+                    <span>{copiedDebug ? 'Copied' : 'Copy JSON'}</span>
+                  </button>
+                )}
+                <span className="text-[10px] text-neutral-500">
+                  {latestDebugPayload?.timestamp || 'Awaiting initial check-in'}
+                </span>
+              </div>
+            </div>
+
+            {latestDebugPayload ? (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5 text-[11px]">
+                {/* Column 1: Mood Tracking */}
+                <div className="p-2.5 rounded-xl bg-neutral-900/80 border border-neutral-800 space-y-1.5">
+                  <div className="text-neutral-400 font-semibold uppercase text-[10px] tracking-wider">Mood Detection Comparison</div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-neutral-400">Current Mood:</span>
+                    <span className="text-cyan-300 font-bold">{latestDebugPayload.detected_mood}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-neutral-400">Previous Mood:</span>
+                    <span className="text-neutral-300">{latestDebugPayload.previous_mood || 'None (Initial)'}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-neutral-400">Confidence / Change:</span>
+                    <span className={`px-1.5 py-0.2 rounded font-semibold text-[10px] ${latestDebugPayload.mood_changed ? 'bg-amber-950 text-amber-300 border border-amber-700' : 'bg-neutral-800 text-neutral-300'}`}>
+                      {latestDebugPayload.confidence} • {latestDebugPayload.mood_changed ? 'SHIFT DETECTED' : 'UNCHANGED (ANGLE ROTATED)'}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Column 2: Physical Markers */}
+                <div className="p-2.5 rounded-xl bg-neutral-900/80 border border-neutral-800 space-y-1">
+                  <div className="text-neutral-400 font-semibold uppercase text-[10px] tracking-wider">Physical Markers (Order 1-4)</div>
+                  <div className="grid grid-cols-2 gap-x-2 gap-y-0.5 text-[10px]">
+                    <div><span className="text-neutral-400">1. Eyes:</span> <span className="text-emerald-300">{latestDebugPayload.physical_markers?.eyes || 'Alert'}</span></div>
+                    <div><span className="text-neutral-400">2. Mouth:</span> <span className="text-emerald-300">{latestDebugPayload.physical_markers?.mouth || 'Neutral'}</span></div>
+                    <div><span className="text-neutral-400">3. Brow:</span> <span className="text-emerald-300">{latestDebugPayload.physical_markers?.brow || 'Relaxed'}</span></div>
+                    <div><span className="text-neutral-400">4. Posture:</span> <span className="text-emerald-300">{latestDebugPayload.physical_markers?.posture || 'Upright'}</span></div>
+                  </div>
+                  <div className="text-[10px] text-neutral-400 pt-0.5 border-t border-neutral-800">
+                    Model: <span className="text-cyan-400">{latestDebugPayload.model_used}</span>
+                  </div>
+                </div>
+
+                {/* Column 3: Anti-Repetition Guard */}
+                <div className="p-2.5 rounded-xl bg-neutral-900/80 border border-neutral-800 space-y-1">
+                  <div className="text-neutral-400 font-semibold uppercase text-[10px] tracking-wider">Anti-Repetition Tracking</div>
+                  <div className="text-[10px] text-neutral-300">
+                    Tracked Responses: <span className="text-amber-400 font-bold">{latestDebugPayload.tracked_recent_responses?.length || 1}</span> / 3
+                  </div>
+                  <div className="text-[10px] text-neutral-300">
+                    Tracked Actions: <span className="text-amber-400 font-bold">{latestDebugPayload.tracked_recent_suggestions?.length || 1}</span> / 3
+                  </div>
+                  <div className="text-[10px] text-cyan-400 truncate">
+                    Angle: {latestDebugPayload.observation_angle}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="p-3 rounded-xl bg-neutral-900/50 border border-neutral-800/80 text-neutral-400 text-center text-xs">
+                Take a check-in snapshot with camera or speech to inspect Gemini's structured raw output, confidence scores, and rotation variables.
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Modal Body - 2 Columns on Desktop */}
         <div className="flex-1 overflow-hidden grid grid-cols-1 lg:grid-cols-12 gap-0">
@@ -540,29 +717,85 @@ export const VisualCompanionModal: React.FC<VisualCompanionModalProps> = ({
                     {/* Message Text */}
                     <div className="leading-relaxed whitespace-pre-wrap">{msg.text}</div>
 
-                    {/* Assistant Extra Metadata (Visual Observations & Decompression) */}
+                    {/* Assistant Extra Metadata (Mood Classification, Visual Markers & Decompression) */}
                     {msg.role === 'assistant' && msg.visualObservation && (
-                      <div className="pt-2 border-t border-neutral-800/80 space-y-2">
-                        {/* Observation Chips */}
+                      <div className="pt-2.5 border-t border-neutral-800/80 space-y-2.5">
+                        {/* Detected Mood & Confidence Badge */}
                         <div className="flex flex-wrap items-center gap-1.5">
+                          {msg.visualObservation.detected_mood && (
+                            <span
+                              className={`px-2.5 py-1 rounded-full text-[11px] font-bold border flex items-center gap-1.5 shadow-sm ${
+                                msg.visualObservation.detected_mood === 'Happy/Joyful'
+                                  ? 'bg-emerald-950/80 border-emerald-700/80 text-emerald-300'
+                                  : msg.visualObservation.detected_mood === 'Sad/Low'
+                                  ? 'bg-sky-950/80 border-sky-700/80 text-sky-300'
+                                  : msg.visualObservation.detected_mood === 'Excited/Energetic'
+                                  ? 'bg-amber-950/80 border-amber-700/80 text-amber-300'
+                                  : msg.visualObservation.detected_mood === 'Stressed/Anxious'
+                                  ? 'bg-rose-950/80 border-rose-700/80 text-rose-300'
+                                  : msg.visualObservation.detected_mood === 'Tired/Fatigued'
+                                  ? 'bg-indigo-950/80 border-indigo-700/80 text-indigo-300'
+                                  : msg.visualObservation.detected_mood === 'Mixed/Complex'
+                                  ? 'bg-purple-950/80 border-purple-700/80 text-purple-300'
+                                  : 'bg-teal-950/80 border-teal-700/80 text-teal-300'
+                              }`}
+                            >
+                              <Smile className="w-3.5 h-3.5" />
+                              <span>{msg.visualObservation.detected_mood}</span>
+                              <span className="text-[9px] px-1 py-0.2 rounded bg-neutral-900/80 border border-neutral-700 text-neutral-300 font-mono uppercase">
+                                {msg.visualObservation.confidence || 'HIGH'}
+                              </span>
+                            </span>
+                          )}
+
                           <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-neutral-900 border border-neutral-700 text-neutral-300 flex items-center gap-1">
                             <Activity className="w-3 h-3 text-cyan-400" />
                             Visual Fatigue: {msg.visualObservation.fatigue_level}
                           </span>
-                          {msg.visualObservation.detected_cues.map((cue, i) => (
-                            <span
-                              key={i}
-                              className="px-2 py-0.5 rounded-full text-[10px] bg-neutral-900 border border-neutral-700 text-neutral-300"
-                            >
-                              {cue}
-                            </span>
-                          ))}
+
                           {msg.visualObservation.incongruence_noted && (
                             <span className="px-2 py-0.5 rounded-full text-[10px] bg-amber-950/70 border border-amber-700 text-amber-300 font-semibold">
                               Subtle incongruence noted
                             </span>
                           )}
                         </div>
+
+                        {/* Physical Markers Breakdown */}
+                        {msg.visualObservation.physical_markers && (
+                          <div className="grid grid-cols-2 gap-1.5 p-2 rounded-xl bg-neutral-900/60 border border-neutral-800 text-[10px]">
+                            <div className="flex items-center gap-1 text-neutral-400">
+                              <span className="font-semibold text-neutral-300">Eyes:</span>{' '}
+                              <span className="truncate">{msg.visualObservation.physical_markers.eyes || 'Alert'}</span>
+                            </div>
+                            <div className="flex items-center gap-1 text-neutral-400">
+                              <span className="font-semibold text-neutral-300">Mouth:</span>{' '}
+                              <span className="truncate">{msg.visualObservation.physical_markers.mouth || 'Neutral'}</span>
+                            </div>
+                            <div className="flex items-center gap-1 text-neutral-400">
+                              <span className="font-semibold text-neutral-300">Brow:</span>{' '}
+                              <span className="truncate">{msg.visualObservation.physical_markers.brow || 'Relaxed'}</span>
+                            </div>
+                            <div className="flex items-center gap-1 text-neutral-400">
+                              <span className="font-semibold text-neutral-300">Posture:</span>{' '}
+                              <span className="truncate">{msg.visualObservation.physical_markers.posture || 'Upright'}</span>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Anti-Repetition Diagnostic Angle Badge */}
+                        {msg.debugInfo && (
+                          <div className="flex items-center justify-between px-2 py-1 rounded-lg bg-neutral-900/40 border border-neutral-800/60 text-[10px] text-neutral-400">
+                            <div className="flex items-center gap-1 text-cyan-400/90">
+                              <Compass className="w-3 h-3" />
+                              <span>Angle: {msg.debugInfo.observation_angle || 'Physical Markers'}</span>
+                            </div>
+                            {msg.debugInfo.mood_changed ? (
+                              <span className="text-amber-400 font-medium">Shifted from previous mood</span>
+                            ) : (
+                              <span className="text-emerald-400/90 font-medium">Anti-repetition rotation active</span>
+                            )}
+                          </div>
+                        )}
 
                         {/* Decompression Box */}
                         {msg.decompression && (
@@ -596,7 +829,7 @@ export const VisualCompanionModal: React.FC<VisualCompanionModalProps> = ({
                     )}
                   </div>
 
-                  {/* Message Action Bar (TTS & Timestamp) */}
+                  {/* Message Action Bar (TTS & Timestamp & Alternate Angle button) */}
                   <div className="flex items-center gap-2 px-1 text-[10px] text-neutral-500">
                     <span>
                       {new Date(msg.timestamp).toLocaleTimeString([], {
@@ -605,22 +838,41 @@ export const VisualCompanionModal: React.FC<VisualCompanionModalProps> = ({
                       })}
                     </span>
                     {msg.role === 'assistant' && (
-                      <button
-                        onClick={() => handleSpeakText(msg.id, msg.text)}
-                        className="text-neutral-400 hover:text-cyan-300 flex items-center gap-1"
-                      >
-                        {isSpeakingId === msg.id ? (
-                          <>
-                            <VolumeX className="w-3 h-3 text-amber-400 animate-pulse" />
-                            <span className="text-amber-300">Stop Speaking</span>
-                          </>
-                        ) : (
-                          <>
-                            <Volume2 className="w-3 h-3 text-cyan-400" />
-                            <span>Read Aloud</span>
-                          </>
-                        )}
-                      </button>
+                      <div className="flex items-center gap-3">
+                        <button
+                          type="button"
+                          onClick={() => handleSpeakText(msg.id, msg.text)}
+                          className="text-neutral-400 hover:text-cyan-300 flex items-center gap-1"
+                        >
+                          {isSpeakingId === msg.id ? (
+                            <>
+                              <VolumeX className="w-3 h-3 text-amber-400 animate-pulse" />
+                              <span className="text-amber-300">Stop Speaking</span>
+                            </>
+                          ) : (
+                            <>
+                              <Volume2 className="w-3 h-3 text-cyan-400" />
+                              <span>Read Aloud</span>
+                            </>
+                          )}
+                        </button>
+
+                        <button
+                          type="button"
+                          disabled={isSending}
+                          onClick={() =>
+                            handleSendMessage(
+                              undefined,
+                              'Can you observe from another angle and suggest an alternate decompression step?'
+                            )
+                          }
+                          className="text-neutral-400 hover:text-cyan-300 flex items-center gap-1 transition disabled:opacity-40"
+                          title="Rotate observation angle and ensure varied response"
+                        >
+                          <RotateCcw className="w-3 h-3 text-cyan-400/80" />
+                          <span>Alternate Angle</span>
+                        </button>
+                      </div>
                     )}
                   </div>
                 </div>

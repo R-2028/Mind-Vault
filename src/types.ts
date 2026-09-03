@@ -173,10 +173,30 @@ export interface SearchMatch {
   matchedTerms: string[];
 }
 
+export type DetectedMoodType = 
+  | 'Happy/Joyful' 
+  | 'Sad/Low' 
+  | 'Excited/Energetic' 
+  | 'Stressed/Anxious' 
+  | 'Calm/Content' 
+  | 'Tired/Fatigued' 
+  | 'Mixed/Complex' 
+  | 'Neutral';
+
+export interface PhysicalMarkers {
+  eyes?: string;
+  mouth?: string;
+  brow?: string;
+  posture?: string;
+}
+
 export interface MultimodalObservation {
   fatigue_level: 'High' | 'Moderate' | 'Low' | 'Energized' | 'Neutral' | 'Undetected';
   detected_cues: string[];
   incongruence_noted: boolean;
+  detected_mood?: DetectedMoodType;
+  confidence?: 'HIGH' | 'MEDIUM' | 'LOW';
+  physical_markers?: PhysicalMarkers;
 }
 
 export interface ActionableDecompression {
@@ -184,10 +204,26 @@ export interface ActionableDecompression {
   friction_level: 'Micro' | 'Low' | 'Medium';
 }
 
+export interface MultimodalDebugInfo {
+  detected_mood: DetectedMoodType;
+  confidence: 'HIGH' | 'MEDIUM' | 'LOW';
+  previous_mood?: string | null;
+  mood_changed: boolean;
+  model_used: string;
+  turn_index?: number;
+  observation_angle?: string;
+  action_category?: string;
+  raw_gemini_timestamp?: number;
+}
+
 export interface MultimodalCompanionResponse {
   companion_response: string;
+  detected_mood?: DetectedMoodType;
+  confidence?: 'HIGH' | 'MEDIUM' | 'LOW';
+  physical_markers?: PhysicalMarkers;
   visual_observations: MultimodalObservation;
   actionable_decompression: ActionableDecompression;
+  debug_info?: MultimodalDebugInfo;
 }
 
 export interface CompanionMessage {
@@ -198,4 +234,5 @@ export interface CompanionMessage {
   snapshotUrl?: string;
   visualObservation?: MultimodalObservation;
   decompression?: ActionableDecompression;
+  debugInfo?: MultimodalDebugInfo;
 }

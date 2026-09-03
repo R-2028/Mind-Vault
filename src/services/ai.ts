@@ -11,7 +11,10 @@ import { MultimodalCompanionResponse, AIAnalysisResult, DecryptedEntry } from '.
 export async function sendMultimodalCheckIn(
   imageBase64: string | null,
   userMessage?: string,
-  conversationHistory?: Array<{ role: 'user' | 'assistant'; text: string }>
+  conversationHistory?: Array<{ role: 'user' | 'assistant'; text: string }>,
+  previousMood?: string | null,
+  recentResponses?: string[],
+  recentSuggestions?: string[]
 ): Promise<MultimodalCompanionResponse> {
   const response = await fetch('/api/ai/multimodal-companion', {
     method: 'POST',
@@ -22,6 +25,9 @@ export async function sendMultimodalCheckIn(
       imageBase64,
       userMessage,
       conversationHistory,
+      previousMood,
+      recentResponses,
+      recentSuggestions,
     }),
   });
 

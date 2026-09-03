@@ -598,6 +598,96 @@ export function App() {
     logSecurityAudit('STORAGE', `Purged encrypted record ${id}`, 'WARN');
   };
 
+  // Regenerate AI synthesis for an existing entry (re-analyzes and re-encrypts)
+  const handleRegenerateInsight = async (id: string) => {
+    if (!masterKey || !vaultMetadata) return;
+    const targetEntry = entries.find((e) => e.id === id);
+    if (!targetEntry) return;
+
+    setIsProcessing(true);
+    try {
+      logSecurityAudit('AI_PROXY', `Re-analyzing reflection ${id} with anti-repetition engine...`, 'INFO');
+      const response = await fetch('/api/ai/analyze-reflection', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          plaintext: targetEntry.plaintext,
+          tone: targetEntry.tone || 'Reflective and grounded',
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to re-synthesize reflection.');
+      }
+
+      const result = await response.json();
+      const updatedInsight = result.data;
+
+      // Update in memory
+      const updatedEntry: DecryptedEntry = {
+        ...targetEntry,
+        aiInsight: updatedInsight,
+      };
+
+      // Re-encrypt and persist
+      const entryPayload = {
+        plaintext: targetEntry.plaintext,
+        tone: targetEntry.tone,
+        tags: targetEntry.tags || [],
+        aiInsight: updatedInsight,
+        location: targetEntry.location,
+        formattedDate: targetEntry.formattedDate,
+      };
+
+      const { ciphertext, iv } = await encryptData(entryPayload, masterKey);
+
+      const record: EncryptedVaultRecord = {
+        id: targetEntry.id,
+        timestamp: targetEntry.timestamp,
+        salt: vaultMetadata.masterSalt,
+        iv,
+        ciphertext,
+        embeddingVector: targetEntry.embedding,
+      };
+
+      await saveEncryptedRecord(record);
+      if (currentUser) {
+        try {
+          await syncEncryptedRecordToCloud(currentUser.uid, record);
+        } catch (cloudErr) {
+          console.warn('Could not sync updated entry to cloud:', cloudErr);
+        }
+      }
+
+      setEntries((prev) => prev.map((e) => (e.id === id ? updatedEntry : e)));
+
+      // Also update actions
+      if (updatedInsight.micro_actions && updatedInsight.micro_actions.length > 0) {
+        const newActions: MicroAction[] = updatedInsight.micro_actions.map(
+          (act: any, idx: number) => ({
+            id: `${targetEntry.id}-act-${idx}-${Date.now()}`,
+            entryId: targetEntry.id,
+            task: act.task,
+            friction_level: act.friction_level || 'Micro',
+            completed: false,
+            createdAt: new Date(targetEntry.timestamp).toISOString(),
+          })
+        );
+        setActions((prev) => [
+          ...newActions,
+          ...prev.filter((a) => a.entryId !== targetEntry.id),
+        ]);
+      }
+
+      logSecurityAudit('CRYPTO', `Re-encrypted reflection ${id} with upgraded dynamic synthesis`, 'SUCCESS');
+    } catch (err: any) {
+      console.error('Error re-synthesizing reflection:', err);
+      logSecurityAudit('STORAGE', `Failed re-synthesizing reflection ${id}: ${err.message}`, 'WARN');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
   // Toggle Micro-Action
   const handleToggleAction = async (actionId: string) => {
     setActions((prev) =>
@@ -679,6 +769,7 @@ export function App() {
                 entries={entries}
                 onSaveEntry={handleSaveEntry}
                 onDeleteEntry={handleDeleteEntry}
+                onRegenerateInsight={handleRegenerateInsight}
                 isProcessing={isProcessing}
                 onAddMicroAction={handleAddCustomAction}
               />

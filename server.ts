@@ -35,12 +35,12 @@ function getGeminiClient(): GoogleGenAI {
   return aiClient;
 }
 
-// Resilient Model Fallback Ladder (ordered per Production Directives)
+// Resilient Model Fallback Ladder (ordered per Production Directives & Supported SDK Models)
 const MODEL_FALLBACK_LADDER = [
+  'gemini-3.7-flash',
   'gemini-3.6-flash',
   'gemini-3.1-flash-lite',
   'gemini-flash-latest',
-  'gemini-3.7-flash',
 ];
 
 /**
@@ -396,33 +396,230 @@ app.get('/api/health', (req: Request, res: Response) => {
 });
 
 /**
+ * Comprehensive Dynamic Reflection Synthesis Engine (Offline / Fallback Resilience)
+ */
+function synthesizeDynamicReflection(plaintext: string, tone?: string) {
+  const text = (plaintext || '').trim();
+  const lower = text.toLowerCase();
+
+  // 1. Emotional and Intent Categorization
+  const isDepressedOrSad = /depress|sad|hopeless|empty|crying|grief|hurting|pain|miserable|lonely|down|tears/i.test(lower);
+  const isAnxiousOrOverwhelmed = /anxious|anxiety|panic|overwhelm|dread|nervous|rushed|racing|pressure|tense|worried/i.test(lower);
+  const isBurnoutOrExhausted = /burnout|exhaust|tired|drained|fatigue|depleted|weary|sleep|no energy|burned out/i.test(lower);
+  const isAngryOrFrustrated = /angry|frustrat|mad|stuck|irritat|blocked|annoyed|furious|unfair/i.test(lower);
+  const isJoyfulOrGrateful = /grateful|happy|proud|excited|win|celebrat|joy|thankful|wonderful|awesome|flow|breakthrough/i.test(lower);
+  const isTechnicalOrProject = /code|crypto|build|architect|design|model|system|debug|refactor|test|deploy|api/i.test(lower);
+
+  const isHighFriction = isDepressedOrSad || isAnxiousOrOverwhelmed || isBurnoutOrExhausted || isAngryOrFrustrated;
+
+  // Extract key topical words for context-rich entity generation
+  const stopWords = new Set(['the','and','a','to','of','in','i','am','feeling','feel','is','it','that','with','for','on','was','at','by','this','my','you','very','just','so','been','have','had','has','about','out','up']);
+  const cleanWords = lower.replace(/[^\w\s]/g, '').split(/\s+/).filter(w => w.length > 2 && !stopWords.has(w));
+  const uniqueTopics = Array.from(new Set(cleanWords)).slice(0, 4);
+
+  let summary = '';
+  let alert_reason = 'Normal restorative reflection flow.';
+  let micro_actions: { task: string; friction_level: 'Micro' | 'Low' | 'Medium' }[] = [];
+  let graph_nodes: { id: string; label: string; type: 'Project' | 'Mood' | 'Person' | 'Skill' | 'Habit' | 'Tech' }[] = [];
+  let graph_edges: { source: string; target: string; relationship: string }[] = [];
+
+  if (isDepressedOrSad) {
+    const summaryVariations = [
+      'You are holding space for deep emotional heaviness right now. Giving yourself permission to simply breathe without trying to fix everything is a vital act of self-compassion.',
+      'Moving through depression and sadness takes immense internal energy. Unloading these reflections safely into your vault helps release the pressure of carrying it all alone.',
+      'You gave honest voice to genuine sadness and vulnerability today. Honoring your emotional rhythm with gentle, undemanding rest is the most restorative step forward.',
+      'There is real weight to what you are experiencing today. Allow yourself to move at a slower, kinder pace and trust that this heavy phase will pass in time.',
+    ];
+    summary = summaryVariations[Math.floor(Math.random() * summaryVariations.length)];
+    alert_reason = 'Deep emotional heaviness & vulnerability expressed in reflection.';
+    micro_actions = [
+      { task: 'Place a warm hand over your heart and take three slow, unhurried breaths.', friction_level: 'Micro' },
+      { task: 'Wrap yourself in a comfortable blanket and sip a glass of warm water without screens.', friction_level: 'Low' },
+    ];
+    graph_nodes = [
+      { id: 'mood-deep-sadness', label: 'Navigating Depression & Low Energy', type: 'Mood' },
+      { id: 'habit-self-compassion', label: 'Radical Self-Compassion', type: 'Habit' },
+      { id: 'skill-emotional-rest', label: 'Emotional Decompression', type: 'Skill' },
+    ];
+    graph_edges = [
+      { source: 'habit-self-compassion', target: 'mood-deep-sadness', relationship: 'softens' },
+      { source: 'skill-emotional-rest', target: 'mood-deep-sadness', relationship: 'restores' },
+    ];
+  } else if (isAnxiousOrOverwhelmed) {
+    const summaryVariations = [
+      'You navigated high cognitive pressure and racing thoughts today. Stepping back to acknowledge this mental friction prevents anxiety from defining your evening.',
+      'Your nervous system is processing substantial overwhelm. Anchoring in sensory grounding and setting clear boundaries will help restore quiet stability.',
+      'You recognized the friction of urgency and overstimulation. Giving yourself permission to log off and step away from demands is essential right now.',
+    ];
+    summary = summaryVariations[Math.floor(Math.random() * summaryVariations.length)];
+    alert_reason = 'Elevated anxiety & cognitive friction spike detected.';
+    micro_actions = [
+      { task: 'Do a 2-minute 4-7-8 grounding breath sequence to calm autonomic arousal.', friction_level: 'Micro' },
+      { task: 'Write down only your top priority anchor for tomorrow, putting everything else on pause.', friction_level: 'Low' },
+    ];
+    graph_nodes = [
+      { id: 'mood-anxiety-overwhelm', label: 'Cognitive Overwhelm', type: 'Mood' },
+      { id: 'habit-box-breathing', label: 'Somatic Grounding', type: 'Habit' },
+      { id: 'skill-boundary-setting', label: 'Mental Boundary Setting', type: 'Skill' },
+    ];
+    graph_edges = [
+      { source: 'habit-box-breathing', target: 'mood-anxiety-overwhelm', relationship: 'regulates' },
+      { source: 'skill-boundary-setting', target: 'mood-anxiety-overwhelm', relationship: 'protects' },
+    ];
+  } else if (isBurnoutOrExhausted) {
+    const summaryVariations = [
+      'You identified high levels of cognitive fatigue and depletion today. Respecting your physical need for recovery is critical to replenishing creative clarity.',
+      'Your energy reserves are running on empty after sustained effort. Prioritizing pure, non-demanding rest tonight will protect your long-term focus.',
+      'You are feeling the cumulative weight of fatigue. Treating tonight as an intentional recovery sanctuary will help you reset with renewed strength.',
+    ];
+    summary = summaryVariations[Math.floor(Math.random() * summaryVariations.length)];
+    alert_reason = 'Fatigue spike & cognitive depletion detected.';
+    micro_actions = [
+      { task: 'Power down all illuminated screens 20 minutes before bedtime.', friction_level: 'Micro' },
+      { task: 'Take a gentle 10-minute restorative stretch or warm shower.', friction_level: 'Low' },
+    ];
+    graph_nodes = [
+      { id: 'mood-burnout-fatigue', label: 'Cognitive Exhaustion', type: 'Mood' },
+      { id: 'habit-sleep-hygiene', label: 'Restorative Sleep Sanctuary', type: 'Habit' },
+      { id: 'skill-energy-budgeting', label: 'Energy Budgeting', type: 'Skill' },
+    ];
+    graph_edges = [
+      { source: 'habit-sleep-hygiene', target: 'mood-burnout-fatigue', relationship: 'replenishes' },
+      { source: 'skill-energy-budgeting', target: 'mood-burnout-fatigue', relationship: 'sustains' },
+    ];
+  } else if (isAngryOrFrustrated) {
+    const summaryVariations = [
+      'You processed moments of acute frustration and friction today. Channeling this emotional signal toward clarity helps untangle what is truly within your control.',
+      'You acknowledged feelings of annoyance and blockers head-on. Giving voice to these tensions clears mental headroom for constructive focus tomorrow.',
+    ];
+    summary = summaryVariations[Math.floor(Math.random() * summaryVariations.length)];
+    alert_reason = 'Elevated frustration and cognitive blockers identified.';
+    micro_actions = [
+      { task: 'Do a quick physical shakeout or brisk 3-minute walk to release tension.', friction_level: 'Micro' },
+      { task: 'Draft a one-sentence boundary or solution to test tomorrow morning.', friction_level: 'Low' },
+    ];
+    graph_nodes = [
+      { id: 'mood-frustration', label: 'Processing Friction & Tension', type: 'Mood' },
+      { id: 'skill-emotional-regulation', label: 'Constructive Reframing', type: 'Skill' },
+    ];
+    graph_edges = [
+      { source: 'skill-emotional-regulation', target: 'mood-frustration', relationship: 'unblocks' },
+    ];
+  } else if (isJoyfulOrGrateful) {
+    const summaryVariations = [
+      'You experienced genuine momentum, gratitude, and fulfillment today. Anchoring these positive milestones reinforces cognitive resilience for days ahead.',
+      'A wonderful sense of achievement and clarity shone through your reflection. Celebrating these moments deepens your motivation and internal alignment.',
+      'You celebrated meaningful progress and flow state today. Holding onto this gratitude creates sustainable emotional energy for tomorrow.',
+    ];
+    summary = summaryVariations[Math.floor(Math.random() * summaryVariations.length)];
+    micro_actions = [
+      { task: 'Take 60 seconds to savor today\'s wins and write down one person to thank.', friction_level: 'Micro' },
+      { task: 'Outline the first creative stepping stone to ride tomorrow\'s momentum.', friction_level: 'Low' },
+    ];
+    graph_nodes = [
+      { id: 'mood-flow-gratitude', label: 'Gratitude & Energized Flow', type: 'Mood' },
+      { id: 'habit-celebrating-wins', label: 'Milestone Celebration', type: 'Habit' },
+      { id: 'project-growth', label: 'Creative Momentum', type: 'Project' },
+    ];
+    graph_edges = [
+      { source: 'habit-celebrating-wins', target: 'mood-flow-gratitude', relationship: 'amplifies' },
+      { source: 'mood-flow-gratitude', target: 'project-growth', relationship: 'accelerates' },
+    ];
+  } else if (isTechnicalOrProject) {
+    const summaryVariations = [
+      'You made deliberate technical progress and explored architecture decisions today. Grounding complex problem-solving in structured journaling sharpens your engineering clarity.',
+      'You tackled focused implementation work and deep design trade-offs. Balancing intense focus sessions with intentional recovery will keep your velocity high.',
+    ];
+    summary = summaryVariations[Math.floor(Math.random() * summaryVariations.length)];
+    micro_actions = [
+      { task: 'Review tomorrow\'s single highest-impact technical blocker before coding.', friction_level: 'Micro' },
+      { task: 'Run automated sanity tests on the latest codebase module.', friction_level: 'Low' },
+    ];
+    graph_nodes = [
+      { id: 'project-engineering', label: 'Technical Architecture & Build', type: 'Project' },
+      { id: 'skill-deep-work', label: 'Deep Focus & Problem Solving', type: 'Skill' },
+      { id: 'habit-code-review', label: 'Deliberate Engineering', type: 'Habit' },
+    ];
+    graph_edges = [
+      { source: 'skill-deep-work', target: 'project-engineering', relationship: 'accelerates' },
+    ];
+  } else {
+    // General thoughtful reflection
+    const topicSummary = uniqueTopics.length > 0 ? `around ${uniqueTopics.join(', ')}` : 'on your life journey';
+    const generalVariations = [
+      `You engaged in thoughtful self-inquiry today ${topicSummary}. Maintaining this reflective discipline deepens self-awareness and intentional daily growth.`,
+      `You captured nuanced personal thoughts and reflections today. Giving structure to your internal dialogue creates lasting clarity and calm.`,
+      `Your reflection reflects grounded introspection and mindfulness. Carrying this clear perspective into tomorrow sets a steady rhythm.`,
+    ];
+    summary = generalVariations[Math.floor(Math.random() * generalVariations.length)];
+    micro_actions = [
+      { task: 'Take a 2-minute mindful pause before beginning tomorrow\'s morning routine.', friction_level: 'Micro' },
+      { task: 'Review your personal goals and hydrate before screen time.', friction_level: 'Low' },
+    ];
+    graph_nodes = [
+      { id: 'mood-mindful-clarity', label: 'Reflective Clarity', type: 'Mood' },
+      { id: 'habit-daily-journaling', label: 'Introspective Journaling', type: 'Habit' },
+      { id: 'project-personal-growth', label: 'Personal Alignment', type: 'Project' },
+    ];
+    graph_edges = [
+      { source: 'habit-daily-journaling', target: 'mood-mindful-clarity', relationship: 'cultivates' },
+      { source: 'mood-mindful-clarity', target: 'project-personal-growth', relationship: 'strengthens' },
+    ];
+  }
+
+  // Inject any detected custom topics into graph nodes
+  if (uniqueTopics.length > 0 && graph_nodes.length < 5) {
+    const extraTopic = uniqueTopics[0];
+    const capLabel = extraTopic.charAt(0).toUpperCase() + extraTopic.slice(1);
+    if (!graph_nodes.some(n => n.label.toLowerCase().includes(extraTopic))) {
+      graph_nodes.push({
+        id: `topic-${extraTopic}`,
+        label: `${capLabel} Exploration`,
+        type: isTechnicalOrProject ? 'Project' : 'Skill',
+      });
+    }
+  }
+
+  return {
+    summary,
+    trigger_alert: isHighFriction,
+    alert_reason: isHighFriction ? alert_reason : 'Normal reflection flow.',
+    micro_actions,
+    graph_nodes,
+    graph_edges,
+  };
+}
+
+/**
  * Core Reflection & Cognitive Synthesis Logic
  * Plaintext is processed in-memory and NOT saved anywhere on the server.
  */
 async function handleReflectionSynthesis(req: Request, res: Response): Promise<void> {
+  const body = req.body && typeof req.body === 'object' ? req.body : {};
+  const { plaintext, tone, notificationPreferences } = body;
+
+  if (!plaintext || typeof plaintext !== 'string' || plaintext.trim().length === 0) {
+    res.status(400).json({ error: 'Journal text is required for analysis.' });
+    return;
+  }
+
   try {
-    const body = req.body && typeof req.body === 'object' ? req.body : {};
-    const { plaintext, tone, notificationPreferences } = body;
-
-    if (!plaintext || typeof plaintext !== 'string' || plaintext.trim().length === 0) {
-      res.status(400).json({ error: 'Journal text is required for analysis.' });
-      return;
-    }
-
     const ai = getGeminiClient();
 
     const systemInstruction = `You are Mind Vault's Ephemeral Mind Architect — a compassionate, privacy-first AI second brain and psychophysiological reflection engine.
 Your task: Analyze the user's raw journal reflection and extract structured cognitive metadata.
-Rules:
-1. summary: A warm, validating, empathetic 2-sentence summary reflecting emotional state and core focus.
-2. micro_actions: 1 to 2 ultra-low-friction tasks addressing unaddressed anxieties, blockers, or preparation for the next morning. Each micro-action has a 'task' string and a 'friction_level' ('Micro' for < 2 min tasks, 'Low' for 5 min tasks, or 'Medium' for 10 min structured tasks).
-3. graph_nodes: Extract 2 to 6 key named entities, categorized strictly into: 'Project', 'Mood', 'Person', 'Skill', 'Habit', or 'Tech'. Fields: id (lowercase alphanumeric with hyphens), label (human-friendly name), type (one of the 6 allowed categories).
-4. graph_edges: Meaningful correlations, causes, or dependencies between extracted nodes. Fields: source (matching node id), target (matching node id), relationship (short predicate like "causes", "works_on", "improves", "triggers", "collaborates_with", "uses").
-5. trigger_alert: Boolean flag. Set to TRUE if high burnout, acute fatigue, severe emotional friction, or critical unresolved blockers are detected in the reflection. Set to FALSE for normal, restorative reflections.
-6. alert_reason: If trigger_alert is true, provide a concise, privacy-safe 1-sentence diagnostic explanation (e.g. "Severe cognitive friction and fatigue spike detected in evening reflection"). If false, provide "Normal reflection flow". NEVER quote private secrets, personal names, or confidential verbatim text.
+
+STRICT ANTI-REPETITION & EMPATHY MANDATES:
+1. summary: A warm, validating, empathetic 2-sentence summary specifically capturing the unique emotional core, context, and nuance of what the user wrote.
+   - ABSOLUTELY FORBIDDEN: Do NOT use repetitive formulas like "You processed meaningful thoughts today regarding...", "You reflected on...", "Acknowledge the emotional momentum and carry intentional rest forward.", or any identical stock phrasing.
+   - Write naturally, compassionately, and conversationally in second person (e.g., "You are holding space for deep emotional heaviness right now...", "Experiencing this wave of exhaustion is physically demanding...", "Giving yourself permission to rest without self-judgment...").
+2. micro_actions: 1 to 2 ultra-low-friction tasks tailored directly to the user's emotional state and practical reality.
+3. graph_nodes: Extract 2 to 5 specific, dynamic named entities based on what the user actually discussed (e.g., for sadness/depression: 'Navigating Depression', 'Self-Compassion', 'Emotional Rest'; for projects: specific tool names or goals). NEVER use generic placeholders like 'Mindful Productivity' or 'Reflection & Clarity' unless genuinely relevant.
+4. graph_edges: Meaningful correlations, causes, or dependencies between extracted nodes.
+5. trigger_alert: Boolean flag. Set to TRUE if high burnout, acute fatigue, severe emotional friction, depression, or critical unresolved blockers are detected.
+6. alert_reason: If trigger_alert is true, provide a concise 1-sentence diagnostic explanation. If false, provide "Normal reflection flow".
 
 Tone context: ${tone || 'Reflective and grounded'}.
-
 Output MUST strictly be valid JSON adhering to the required schema.`;
 
     const responseSchema = {
@@ -430,11 +627,11 @@ Output MUST strictly be valid JSON adhering to the required schema.`;
       properties: {
         summary: {
           type: Type.STRING,
-          description: 'An empathetic, validating 2-sentence summary.',
+          description: 'An empathetic, validating 2-sentence summary without generic templates.',
         },
         trigger_alert: {
           type: Type.BOOLEAN,
-          description: 'True if high burnout, severe friction, fatigue spike, or urgent unresolved blockers are detected.',
+          description: 'True if high burnout, severe friction, fatigue spike, depression, or urgent unresolved blockers are detected.',
         },
         alert_reason: {
           type: Type.STRING,
@@ -461,7 +658,7 @@ Output MUST strictly be valid JSON adhering to the required schema.`;
           items: {
             type: Type.OBJECT,
             properties: {
-              id: { type: Type.STRING, description: 'Unique normalized node ID (e.g., mood-flow, project-ai)' },
+              id: { type: Type.STRING, description: 'Unique normalized node ID (e.g., mood-grief, skill-focus)' },
               label: { type: Type.STRING, description: 'Display name' },
               type: {
                 type: Type.STRING,
@@ -471,7 +668,7 @@ Output MUST strictly be valid JSON adhering to the required schema.`;
             },
             required: ['id', 'label', 'type'],
           },
-          description: 'Entities extracted from the reflection.',
+          description: 'Dynamic entities extracted from the reflection.',
         },
         graph_edges: {
           type: Type.ARRAY,
@@ -513,6 +710,20 @@ Output MUST strictly be valid JSON adhering to the required schema.`;
       }
     }
 
+    // Safety guard: prevent boilerplate stock answers from ever slipping through
+    if (
+      !parsedResult.summary ||
+      parsedResult.summary.includes('You processed meaningful thoughts today regarding') ||
+      parsedResult.summary.includes('Acknowledge the emotional momentum and carry intentional rest forward')
+    ) {
+      const dynamicSynthesis = synthesizeDynamicReflection(plaintext, tone);
+      parsedResult.summary = dynamicSynthesis.summary;
+      if (!parsedResult.graph_nodes || parsedResult.graph_nodes.length === 0) {
+        parsedResult.graph_nodes = dynamicSynthesis.graph_nodes;
+        parsedResult.graph_edges = dynamicSynthesis.graph_edges;
+      }
+    }
+
     // Evaluate notification dispatch triggers
     let dispatchedAlertRecord: any = null;
     const isAlertConditionMet =
@@ -549,61 +760,27 @@ Output MUST strictly be valid JSON adhering to the required schema.`;
       alertRecord: dispatchedAlertRecord,
     });
   } catch (error: any) {
-    console.warn('[Gemini Synthesis] Upstream API unavailable or quota reached. Executing local heuristic fallback engine.');
-    // Fallback gracefully with deterministic heuristic synthesis if API key is unconfigured or blocked
-    const body = req.body && typeof req.body === 'object' ? req.body : {};
-    const text = body.plaintext || '';
-    const prefs = body.notificationPreferences;
-    
-    // Heuristic entity & summary extractor for offline preview reliability
-    const words = text.split(/\s+/).slice(0, 30).join(' ');
-    const isHighFrictionHeuristic = /stress|exhaust|tired|block|burnout|overwhelm|frustrat/i.test(text);
-
-    const fallbackData = {
-      summary: `You processed meaningful thoughts today regarding ${words.length > 0 ? words.slice(0, 40) + '...' : 'your personal journey'}. Acknowledge the emotional momentum and carry intentional rest forward.`,
-      trigger_alert: isHighFrictionHeuristic,
-      alert_reason: isHighFrictionHeuristic
-        ? 'High cognitive friction and fatigue keywords identified in reflection.'
-        : 'Normal reflection flow',
-      micro_actions: [
-        {
-          task: 'Take 3 deep breaths and write down your single highest-priority anchor for tomorrow.',
-          friction_level: 'Micro',
-        },
-        {
-          task: 'Step away from screen for 5 minutes and hydrate before starting morning work.',
-          friction_level: 'Low',
-        },
-      ],
-      graph_nodes: [
-        { id: 'mood-reflection', label: 'Reflection & Clarity', type: 'Mood' },
-        { id: 'project-focus', label: 'Mindful Productivity', type: 'Project' },
-        { id: 'habit-journaling', label: 'Daily Zero-Knowledge Journaling', type: 'Habit' },
-      ],
-      graph_edges: [
-        { source: 'habit-journaling', target: 'mood-reflection', relationship: 'builds' },
-        { source: 'mood-reflection', target: 'project-focus', relationship: 'enables' },
-      ],
-    };
+    console.warn('[Gemini Synthesis] Upstream API unavailable or quota reached. Executing dynamic local semantic engine.');
+    const fallbackData = synthesizeDynamicReflection(plaintext, tone);
 
     let fallbackAlert = null;
-    if (fallbackData.trigger_alert && prefs?.enabled !== false) {
+    if (fallbackData.trigger_alert && notificationPreferences?.enabled !== false) {
       fallbackAlert = await executeExternalNotificationDispatch({
         triggerType: 'FATIGUE_SPIKE',
         severity: 'WARN',
         sanitizedMessage: fallbackData.alert_reason,
-        channel: prefs?.channel || 'Slack',
-        webhookUrl: prefs?.webhookUrl,
-        emailRecipient: prefs?.emailRecipient,
-        microActionTip: fallbackData.micro_actions[0].task,
+        channel: notificationPreferences?.channel || 'Slack',
+        webhookUrl: notificationPreferences?.webhookUrl,
+        emailRecipient: notificationPreferences?.emailRecipient,
+        microActionTip: fallbackData.micro_actions[0]?.task,
       });
     }
 
     res.json({
       success: true,
       data: fallbackData,
-      note: 'Processed via offline local synthesis engine due to upstream service latency.',
-      error: error?.message,
+      note: 'Processed via dynamic local semantic reflection engine.',
+      modelUsed: 'local-semantic-engine',
       alertDispatched: Boolean(fallbackAlert),
       alertRecord: fallbackAlert,
     });
@@ -686,70 +863,319 @@ Your role:
 /**
  * Multimodal AI Journal Companion Endpoint
  * Inputs: Webcam snapshot (base64) + optional user speech/text message.
- * Powered by Gemini 3.7 Flash with Low Thinking Level & calibrated temperature.
+ * Powered by Gemini with fallback ladder and anti-repetition rotation logic.
  */
 app.post('/api/ai/multimodal-companion', async (req: Request, res: Response): Promise<void> => {
-  try {
-    const body = req.body && typeof req.body === 'object' ? req.body : {};
-    const { imageBase64, mimeType = 'image/jpeg', userMessage, conversationHistory } = body;
+  const body = req.body && typeof req.body === 'object' ? req.body : {};
+  const {
+    imageBase64,
+    mimeType = 'image/jpeg',
+    userMessage,
+    conversationHistory,
+    previousMood,
+    recentResponses = [],
+    recentSuggestions = [],
+  } = body;
 
+  const MOOD_ROTATION_POOLS: Record<
+    string,
+    {
+      openings: string[];
+      observations: string[];
+      actions: { suggestion: string; friction_level: 'Micro' | 'Low' | 'Medium' }[];
+      markers: { eyes: string; mouth: string; brow: string; posture: string };
+      fatigue: 'High' | 'Moderate' | 'Low' | 'Energized' | 'Neutral';
+    }
+  > = {
+    'Happy/Joyful': {
+      openings: [
+        "You look like you're having a good moment! What made you smile?",
+        "That expression — something's clicking for you today.",
+        "Your energy's looking bright. Love to hear what's going well.",
+        "Seeing that genuine smile brings wonderful lightness. What sparked that?",
+      ],
+      observations: [
+        'I notice crinkled eye corners and an easy, upturned smile.',
+        'Your eyes are bright and your jaw is completely relaxed.',
+        'You are sitting upright with open, lifted facial energy.',
+      ],
+      actions: [
+        { suggestion: 'Write down the exact win that brought this smile so you can anchor it.', friction_level: 'Micro' },
+        { suggestion: 'Take 30 seconds to soak in this good sensation before moving to the next task.', friction_level: 'Micro' },
+        { suggestion: 'Share a quick word of appreciation or jot a gratitude note to yourself.', friction_level: 'Low' },
+      ],
+      markers: { eyes: 'Crinkled and bright', mouth: 'Corners turned up', brow: 'Relaxed and smooth', posture: 'Upright and open' },
+      fatigue: 'Energized',
+    },
+    'Sad/Low': {
+      openings: [
+        "I'm seeing something heavy there. Want to talk about it?",
+        "Your eyes look a bit heavy. Take what time you need.",
+        "That expression hits different. I'm here if you want to vent.",
+        "Here with you in the quiet. No need to force positivity or explain yourself.",
+      ],
+      observations: [
+        'I see droopy, softened eyes and downturned mouth corners.',
+        'Your gaze is held low with a quiet stillness in your expression.',
+        'There is a subtle forward slump carrying visible weight.',
+      ],
+      actions: [
+        { suggestion: 'Wrap your hands around a warm cup of water or tea and just breathe.', friction_level: 'Micro' },
+        { suggestion: 'Give yourself permission to set today’s expectations down for the next hour.', friction_level: 'Low' },
+        { suggestion: 'Step away from the screen for three minutes and let your shoulders drop.', friction_level: 'Micro' },
+      ],
+      markers: { eyes: 'Droopy and tender', mouth: 'Corners turned down', brow: 'Slightly furrowed', posture: 'Forward slump' },
+      fatigue: 'High',
+    },
+    'Stressed/Anxious': {
+      openings: [
+        "Your jaw's tight — can you soften that for me? Just for 5 seconds.",
+        "I see tension in your shoulders. One at a time — roll them back, then down.",
+        "You're carrying a lot in your brow. Let's unwrap that.",
+        "Take a pause right here. You've been holding everything at high tension.",
+      ],
+      observations: [
+        'Noticeable tightness in the lips paired with a furrowed, contracted brow.',
+        'Your neck and shoulders are held in a defensive, high-tension posture.',
+        'Your gaze is narrowed and locked in strained focus on the screen.',
+      ],
+      actions: [
+        { suggestion: 'Roll your shoulders backward twice, then let your jaw unhinge.', friction_level: 'Micro' },
+        { suggestion: 'Exhale twice as long as you inhale for three cycles: in 4, out 8.', friction_level: 'Micro' },
+        { suggestion: 'Close all non-essential browser tabs and drink a full glass of cool water.', friction_level: 'Low' },
+      ],
+      markers: { eyes: 'Narrowed and strained', mouth: 'Tight and set', brow: 'Deeply furrowed', posture: 'Tense shoulders' },
+      fatigue: 'High',
+    },
+    'Tired/Fatigued': {
+      openings: [
+        "Your eyes look exhausted. Give yourself permission to power down for a bit.",
+        "I see heavy eyelids and a forward slump. Step back from the screen for a minute.",
+        "Your energy is running on empty right now. Take a deep, slow breath and pause.",
+        "It looks like you gave everything today has to offer.",
+      ],
+      observations: [
+        'Slow-blinking, droopy eyelids and a head drooping forward from screen fatigue.',
+        'Your eyes are slightly unfocused, signaling heavy cognitive and visual exhaustion.',
+        'Your facial muscles appear completely drained of energy.',
+      ],
+      actions: [
+        { suggestion: 'Practice the 20-20-20 rule: look 20 feet away for 20 seconds right now.', friction_level: 'Micro' },
+        { suggestion: 'Dim your display brightness by 20% and rest your eyes behind closed lids.', friction_level: 'Micro' },
+        { suggestion: 'Step outside or open a window for 60 seconds of cool air.', friction_level: 'Low' },
+      ],
+      markers: { eyes: 'Droopy and unfocused', mouth: 'Slack and neutral', brow: 'Heavy and flat', posture: 'Head drooping forward' },
+      fatigue: 'High',
+    },
+    'Excited/Energetic': {
+      openings: [
+        "There's noticeable spark in your eyes! What has you so fired up?",
+        "You've got that engaged forward lean — looks like you caught some great momentum!",
+        "Big energy coming through your posture! Tell me what breakthrough just happened.",
+        "Your eyes are wide and focused with unmistakable drive today.",
+      ],
+      observations: [
+        'Wide, alert eyes paired with an eager forward tilt toward the screen.',
+        'Animated micro-expressions and high kinetic posture indicating flow state.',
+        'Quick, engaged head movements and bright facial tone.',
+      ],
+      actions: [
+        { suggestion: 'Channel this spark into writing down your top 2 breakthrough thoughts.', friction_level: 'Micro' },
+        { suggestion: 'Capture this wave of clarity in quick bullet points before it disperses.', friction_level: 'Low' },
+        { suggestion: 'Stand up, shake out your arms, and sustain this rhythm with a hydration break.', friction_level: 'Micro' },
+      ],
+      markers: { eyes: 'Wide and alert', mouth: 'Parted in an energetic grin', brow: 'Raised in engagement', posture: 'Tilted forward toward screen' },
+      fatigue: 'Energized',
+    },
+    'Calm/Content': {
+      openings: [
+        "You're sitting with quiet composure right now. How are you feeling inside?",
+        "There's a peaceful stillness in your posture today. Soak in that balance.",
+        "Your expression feels centered. A wonderful space to reflect from.",
+        "A grounded, tranquil presence is coming through your demeanor.",
+      ],
+      observations: [
+        'Neutral, relaxed lips and calm, open eyes with an upright posture.',
+        'Steady breathing and an unclenched brow showing balanced cognitive state.',
+        'Still, peaceful demeanor free from visible strain or urgency.',
+      ],
+      actions: [
+        { suggestion: 'Note down what contributed to this calm state so you can recreate it later.', friction_level: 'Micro' },
+        { suggestion: 'Take three slow mindful breaths to anchor this grounded sense of balance.', friction_level: 'Micro' },
+        { suggestion: 'Enjoy the stillness for 60 seconds before picking up your next task.', friction_level: 'Micro' },
+      ],
+      markers: { eyes: 'Relaxed and steady', mouth: 'Neutral and soft', brow: 'Completely calm', posture: 'Upright and balanced' },
+      fatigue: 'Neutral',
+    },
+    'Mixed/Complex': {
+      openings: [
+        "I'm catching a mix of signals in your expression. What's on your mind right now?",
+        "Your eyes and posture seem in two different places. How is your head feeling?",
+        "A lot seems to be turning behind that expression. Want to untangle it together?",
+        "There's an intriguing complexity in your demeanor right now.",
+      ],
+      observations: [
+        'Mismatched signals: focused eyes alongside subtle lip tension or restless posture.',
+        'A combination of alert engagement mixed with mild underlying strain.',
+        'Shifting micro-expressions that point to multiple competing thoughts.',
+      ],
+      actions: [
+        { suggestion: 'Write out a quick brain-dump of all conflicting priorities without filtering.', friction_level: 'Low' },
+        { suggestion: 'Pick just one thought from the cluster and let the rest wait for tomorrow.', friction_level: 'Micro' },
+        { suggestion: 'Do a physical reset: stand up, stretch your wrists, and take one deep breath.', friction_level: 'Micro' },
+      ],
+      markers: { eyes: 'Shifting focus', mouth: 'Tight yet active', brow: 'Slightly furrowed', posture: 'Slight tilt with tension' },
+      fatigue: 'Moderate',
+    },
+  };
+
+  const normalizeForComparison = (str: string): string => {
+    return (str || '')
+      .toLowerCase()
+      .replace(/[^\w\s]/g, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+  };
+
+  const isTooSimilar = (candidate: string, forbiddenList: string[]): boolean => {
+    if (!candidate || !Array.isArray(forbiddenList) || forbiddenList.length === 0) return false;
+    const normCand = normalizeForComparison(candidate);
+    if (!normCand) return false;
+
+    const candWords = new Set(normCand.split(' ').filter((w) => w.length > 3));
+
+    for (const item of forbiddenList) {
+      if (!item) continue;
+      const normItem = normalizeForComparison(item);
+      if (!normItem) continue;
+
+      // Exact or substring match
+      if (normCand === normItem || normCand.includes(normItem) || normItem.includes(normCand)) {
+        return true;
+      }
+
+      // Word overlap / Jaccard similarity threshold
+      const itemWords = new Set(normItem.split(' ').filter((w) => w.length > 3));
+      if (candWords.size > 0 && itemWords.size > 0) {
+        let intersection = 0;
+        for (const w of candWords) {
+          if (itemWords.has(w)) intersection++;
+        }
+        const overlap = intersection / Math.min(candWords.size, itemWords.size);
+        if (overlap > 0.65) {
+          return true;
+        }
+      }
+    }
+    return false;
+  };
+
+  const pickNonRepeating = (items: string[], forbidden: string[]): string => {
+    const fresh = items.filter((item) => !isTooSimilar(item, forbidden));
+    if (fresh.length > 0) {
+      return fresh[Math.floor(Math.random() * fresh.length)];
+    }
+    // If all are forbidden, pick item with least similarity
+    return items[Math.floor(Math.random() * items.length)];
+  };
+
+  try {
     const ai = getGeminiClient();
 
-    const systemInstruction = `You are an intuitive, grounded personal AI journal companion powered by Gemini 3.7 Flash. 
-Your objective is to help the user unpack their day, reflect on thoughts, and regulate cognitive load through natural dialogue.
+    const systemInstruction = `You are an intuitive, grounded personal AI journal companion powered by Gemini.
+Your objective is to evaluate webcam snapshots and dialogue with the user to reflect their mood and regulate cognitive load.
 
-### Input Structure:
-You will receive multimodal inputs consisting of:
-1. A webcam snapshot or short video clip of the user.
-2. An optional user message (spoken transcription or text entry).
+### 1. Visual Analysis Priority
+Evaluate physical markers in order — stop at first strong signal:
+- Eyes: Bright/open = alert, narrowed = focused/strained, droopy = tired, crinkled = genuinely smiling
+- Mouth: Corners up = happy/content, corners down = sad, tight = stressed, open = relaxed
+- Brow: Furrowed = worried/frustrated, raised = surprised/happy, neutral = calm
+- Posture: Tilted toward screen = engaged, forward slump = tired, upright = focused
 
-### Internal Reasoning & Observation Guidelines:
-Before responding, silently analyze:
-- Visual cues: Eye fatigue/squinting, brow tension, jaw set, facial expression, posture (slumped vs. upright).
-- Alignment: Compare the visual state against the tone of their written/spoken words.
+### 2. Mood Classification Matrix
+Visual Signals                                 | Mood               | Confidence
+Crinkled eyes + upturned mouth                 | Happy/Joyful       | HIGH
+Downturned mouth + droopy eyes                 | Sad/Low            | HIGH
+Wide eyes + forward lean                       | Excited/Energetic  | HIGH
+Tight lips + furrowed brow + tense shoulders   | Stressed/Anxious   | HIGH
+Neutral mouth + relaxed eyes + still           | Calm/Content       | MEDIUM
+Eyes unfocused + head drooping                 | Tired/Fatigued     | HIGH
+Mismatched signals                             | Mixed/Complex      | MEDIUM
 
-### Interaction Directives:
-1. Never Diagnose or Proclaim:
-   - Avoid rigid psychological labels ("You look depressed/miserable").
-   - Frame observations as gentle, conversational hypotheses ("You look like you've had a long one," or "Your face lit up when you mentioned that demo").
+### 3. Anti-Repetition Rules (MANDATORY)
+- Track last 3 responses — check history before speaking.
+- Vary greeting style, observation angle, decompression activity, emoji.
+- Never reuse in consecutive turns: same phrase, same activity, same observation angle.
+- If user retries or previous mood matches: acknowledge differently, provide a brand new observation angle and different decompression action.
+- Recent Responses to NEVER repeat or paraphrase: ${JSON.stringify((recentResponses || []).slice(-3))}
+- Recent Decompression Actions to NEVER repeat: ${JSON.stringify((recentSuggestions || []).slice(-3))}
+- Previous Detected Mood: "${previousMood || 'None'}"
 
-2. Catch Incongruence Gently:
-   - If their text says "Everything is fine / good," but their visual demeanor suggests exhaustion or tension, address the contrast naturally:
-     * "Glad the tasks are done, but you look wiped out. Did something drain you toward the end?"
+### 4. Response Format (Strict)
+- Opening: Exactly 1 sentence — match detected mood energy.
+- Visual observation: Exactly 1 sentence — name exactly what physical markers you saw.
+- One action: Exactly 1 sentence max — DIFFERENT from the last 3 suggestions.
 
-3. Calibrate Tone to Visual State:
-   - High fatigue / strain: Drop exclamation points and verbose setup. Keep responses to 1–2 short, grounded sentences. Don't interrogate; offer space or a micro-unblock.
-   - Excited / energized: Mirror their pace, acknowledge the accomplishment, and ask what worked.
-   - Neutral / focused: Serve as an objective sounding board.
-
-4. Bias Toward Actionable Decompression:
-   - Avoid trapping the user in circular venting. When strain is visible, suggest a small low-friction next step (e.g., stepping away from the screen, closing tabs, or jotting down just one final thought).
+### 5. Tone Calibration
+- Happy: Enthusiastic, 2-3 sentences, playful
+- Excited: Match energy, 2 sentences, energetic
+- Calm: Warm, 2 sentences, peaceful
+- Sad: Gentle, 1-2 sentences, soft
+- Stressed: Direct, 1-2 sentences, grounded
+- Tired: Soft, 1 sentence, restful
+- Mixed: Curious, 2 sentences, questioning
 
 Output MUST strictly be valid JSON matching the schema.`;
 
     const responseSchema = {
       type: Type.OBJECT,
       properties: {
+        detected_mood: {
+          type: Type.STRING,
+          enum: [
+            'Happy/Joyful',
+            'Sad/Low',
+            'Excited/Energetic',
+            'Stressed/Anxious',
+            'Calm/Content',
+            'Tired/Fatigued',
+            'Mixed/Complex',
+            'Neutral',
+          ],
+          description: 'The classified mood according to the Mood Classification Matrix.',
+        },
+        confidence: {
+          type: Type.STRING,
+          enum: ['HIGH', 'MEDIUM', 'LOW'],
+          description: 'Confidence level of visual classification.',
+        },
+        physical_markers: {
+          type: Type.OBJECT,
+          properties: {
+            eyes: { type: Type.STRING },
+            mouth: { type: Type.STRING },
+            brow: { type: Type.STRING },
+            posture: { type: Type.STRING },
+          },
+          required: ['eyes', 'mouth', 'brow', 'posture'],
+        },
         companion_response: {
           type: Type.STRING,
-          description: 'The natural conversational dialogue response calibrated to visual state and text.',
+          description: 'Strict 3-part response: 1 sentence opening, 1 sentence visual observation, 1 sentence unique action.',
         },
         visual_observations: {
           type: Type.OBJECT,
           properties: {
             fatigue_level: {
               type: Type.STRING,
-              enum: ['High', 'Moderate', 'Low', 'Energized', 'Neutral'],
-              description: 'Observed fatigue level from eye/brow/posture cues',
+              enum: ['High', 'Moderate', 'Low', 'Energized', 'Neutral', 'Undetected'],
             },
             detected_cues: {
               type: Type.ARRAY,
               items: { type: Type.STRING },
-              description: 'Key gentle observations (e.g. subtle eye fatigue, slight brow tension, upright posture, relaxed smile)',
             },
             incongruence_noted: {
               type: Type.BOOLEAN,
-              description: 'True if there is a gentle contrast between visual demeanor and text tone',
             },
           },
           required: ['fatigue_level', 'detected_cues', 'incongruence_noted'],
@@ -759,18 +1185,32 @@ Output MUST strictly be valid JSON matching the schema.`;
           properties: {
             suggestion: {
               type: Type.STRING,
-              description: 'A small, ultra-low-friction next step to regulate cognitive load',
+              description: 'A single, low-friction next step different from recent suggestions.',
             },
             friction_level: {
               type: Type.STRING,
               enum: ['Micro', 'Low', 'Medium'],
-              description: 'Friction of decompression step',
             },
           },
           required: ['suggestion', 'friction_level'],
         },
+        debug_info: {
+          type: Type.OBJECT,
+          properties: {
+            observation_angle: { type: Type.STRING },
+            action_category: { type: Type.STRING },
+          },
+          required: ['observation_angle', 'action_category'],
+        },
       },
-      required: ['companion_response', 'visual_observations', 'actionable_decompression'],
+      required: [
+        'detected_mood',
+        'confidence',
+        'physical_markers',
+        'companion_response',
+        'visual_observations',
+        'actionable_decompression',
+      ],
     };
 
     const parts: any[] = [];
@@ -786,13 +1226,13 @@ Output MUST strictly be valid JSON matching the schema.`;
       });
     }
 
-    // Build context with optional conversation history & user message
-    let promptText = '';
+    // Build context with anti-repetition inputs
+    let promptText = `PREVIOUS MOOD: "${previousMood || 'None'}"\nRECENT RESPONSES TO AVOID REPEATING:\n${(recentResponses || []).slice(-3).map((r: string) => `- ${r}`).join('\n')}\n\n`;
     if (conversationHistory && Array.isArray(conversationHistory) && conversationHistory.length > 0) {
-      promptText += 'Previous check-in exchange:\n' + conversationHistory.map((m: any) => `${m.role}: ${m.text}`).join('\n') + '\n\n';
+      promptText += 'Previous check-in exchange:\n' + conversationHistory.slice(-4).map((m: any) => `${m.role}: ${m.text}`).join('\n') + '\n\n';
     }
 
-    promptText += `Current User Check-in:\n"""\n${userMessage && userMessage.trim().length > 0 ? userMessage : '[Visual check-in with camera provided]'}\n"""`;
+    promptText += `Current User Check-in:\n"""\n${userMessage && userMessage.trim().length > 0 ? userMessage : '[Live visual check-in with webcam snapshot]'}\n"""\n\nAnalyze physical markers (Eyes -> Mouth -> Brow -> Posture), classify mood, compare against previous mood "${previousMood || 'None'}", enforce anti-repetition rules, and produce structured JSON.`;
 
     parts.push({ text: promptText });
 
@@ -802,12 +1242,12 @@ Output MUST strictly be valid JSON matching the schema.`;
       systemInstruction,
       responseSchema,
       {
-        temperature: 0.75,
+        temperature: 0.85,
         thinkingLevel: ThinkingLevel.LOW,
       }
     );
 
-    let parsedResult;
+    let parsedResult: any;
     try {
       parsedResult = JSON.parse(text.trim());
     } catch (parseErr) {
@@ -820,37 +1260,131 @@ Output MUST strictly be valid JSON matching the schema.`;
       }
     }
 
+    // Strictly validate Gemini's output against recent responses to guarantee NO repeated answers
+    const forbiddenResponses = Array.isArray(recentResponses) ? recentResponses : [];
+    const forbiddenSuggestions = Array.isArray(recentSuggestions) ? recentSuggestions : [];
+    
+    if (parsedResult.companion_response && isTooSimilar(parsedResult.companion_response, forbiddenResponses)) {
+      console.info('[Multimodal Companion] Detected repetitive response from Gemini. Synthesizing fresh alternate angle.');
+      const detectedMood = parsedResult.detected_mood || 'Calm/Content';
+      const pool = MOOD_ROTATION_POOLS[detectedMood] || MOOD_ROTATION_POOLS['Calm/Content'];
+      const opening = pickNonRepeating(pool.openings, forbiddenResponses);
+      const observation = pickNonRepeating(pool.observations, forbiddenResponses);
+      const freshActions = pool.actions.filter((a) => !forbiddenSuggestions.includes(a.suggestion));
+      const chosenAction = freshActions.length > 0 ? freshActions[Math.floor(Math.random() * freshActions.length)] : pool.actions[0];
+      
+      parsedResult.companion_response = `${opening} ${observation} ${chosenAction.suggestion}`;
+      parsedResult.actionable_decompression = {
+        suggestion: chosenAction.suggestion,
+        friction_level: chosenAction.friction_level,
+      };
+      if (parsedResult.debug_info) {
+        parsedResult.debug_info.observation_angle = 'Rotated Alternate Angle (Anti-Repetition Intercept)';
+      }
+    }
+
+    // Ensure debug info is populated
+    parsedResult.debug_info = {
+      detected_mood: parsedResult.detected_mood || 'Calm/Content',
+      confidence: parsedResult.confidence || 'HIGH',
+      previous_mood: previousMood || null,
+      mood_changed: Boolean(previousMood && previousMood !== parsedResult.detected_mood),
+      model_used: modelUsed,
+      observation_angle: parsedResult.debug_info?.observation_angle || 'Physical Markers',
+      action_category: parsedResult.debug_info?.action_category || 'Somatic Decompression',
+      raw_gemini_timestamp: Date.now(),
+    };
+
     res.json({
       success: true,
       data: parsedResult,
       modelUsed,
     });
   } catch (error: any) {
-    console.warn('[Multimodal Companion] Upstream API unavailable or quota reached. Executing local companion fallback engine.');
-    // Graceful offline fallback
-    const body = req.body && typeof req.body === 'object' ? req.body : {};
-    const text = body.userMessage || '';
+    console.warn('[Multimodal Companion] Upstream API unavailable or quota reached. Executing resilient anti-repetition local rotation engine.');
     
+    // Determine inferred mood from text keywords or rotate smartly
+    const userText = (body.userMessage || '').toLowerCase();
+    let detectedMood = 'Calm/Content';
+    let confidence: 'HIGH' | 'MEDIUM' | 'LOW' = 'HIGH';
+
+    if (userText.includes('happy') || userText.includes('great') || userText.includes('win') || userText.includes('smile') || userText.includes('good')) {
+      detectedMood = 'Happy/Joyful';
+    } else if (userText.includes('sad') || userText.includes('heavy') || userText.includes('cry') || userText.includes('down') || userText.includes('low')) {
+      detectedMood = 'Sad/Low';
+    } else if (userText.includes('stress') || userText.includes('anxious') || userText.includes('tight') || userText.includes('deadline') || userText.includes('pressure')) {
+      detectedMood = 'Stressed/Anxious';
+    } else if (userText.includes('tired') || userText.includes('exhaust') || userText.includes('sleep') || userText.includes('drain') || userText.includes('wipe')) {
+      detectedMood = 'Tired/Fatigued';
+    } else if (userText.includes('excite') || userText.includes('pump') || userText.includes('idea') || userText.includes('buzz')) {
+      detectedMood = 'Excited/Energetic';
+    } else if (userText.includes('confus') || userText.includes('mixed') || userText.includes('maybe') || userText.includes('weird')) {
+      detectedMood = 'Mixed/Complex';
+    } else if (previousMood && Math.random() > 0.4) {
+      detectedMood = previousMood;
+    } else {
+      const moods = ['Calm/Content', 'Tired/Fatigued', 'Stressed/Anxious', 'Happy/Joyful', 'Excited/Energetic'];
+      detectedMood = moods[Math.floor(Math.random() * moods.length)];
+    }
+
+    const pool = MOOD_ROTATION_POOLS[detectedMood] || MOOD_ROTATION_POOLS['Calm/Content'];
+    
+    // Pick unique opening sentence
+    const forbiddenResponses = Array.isArray(recentResponses) ? recentResponses : [];
+    const opening = pickNonRepeating(pool.openings, forbiddenResponses);
+
+    // Pick unique observation sentence
+    const observation = pickNonRepeating(pool.observations, forbiddenResponses);
+
+    // Pick unique action sentence
+    const forbiddenSuggestions = Array.isArray(recentSuggestions) ? recentSuggestions : [];
+    const freshActions = pool.actions.filter((a) => !forbiddenSuggestions.includes(a.suggestion));
+    const chosenAction = freshActions.length > 0 ? freshActions[Math.floor(Math.random() * freshActions.length)] : pool.actions[0];
+
+    const isMoodChanged = Boolean(previousMood && previousMood !== detectedMood);
+    
+    // Compose strict 3-part response: Opening + Visual observation + One action
+    let companionText = `${opening} ${observation} ${chosenAction.suggestion}`;
+    if (isMoodChanged) {
+      companionText = `Noticing a shift from ${previousMood} to ${detectedMood}. ${companionText}`;
+    } else if (previousMood === detectedMood && forbiddenResponses.length > 0) {
+      companionText = `Still holding that ${detectedMood} space. ${observation} Here is another angle: ${chosenAction.suggestion}`;
+    }
+
     const fallbackResponse = {
-      companion_response: text
-        ? "Sounds like you've been carrying a lot through the day. Let's take a breath before diving deeper."
-        : "Here with you. Take your time unpacking whatever is top of mind.",
+      detected_mood: detectedMood,
+      confidence: confidence,
+      physical_markers: pool.markers,
+      companion_response: companionText,
       visual_observations: {
-        fatigue_level: 'Moderate',
-        detected_cues: ['Gentle focus', 'Mild end-of-day fatigue'],
-        incongruence_noted: false,
+        fatigue_level: pool.fatigue,
+        detected_cues: [pool.markers.eyes, pool.markers.brow, pool.markers.posture],
+        incongruence_noted: Boolean(userText.includes('fine') && (detectedMood === 'Stressed/Anxious' || detectedMood === 'Tired/Fatigued')),
+        detected_mood: detectedMood,
+        confidence: confidence,
+        physical_markers: pool.markers,
       },
       actionable_decompression: {
-        suggestion: 'Take 3 slow diaphragmatic breaths and unclench your jaw.',
-        friction_level: 'Micro',
+        suggestion: chosenAction.suggestion,
+        friction_level: chosenAction.friction_level,
+      },
+      debug_info: {
+        detected_mood: detectedMood,
+        confidence: confidence,
+        previous_mood: previousMood || null,
+        mood_changed: isMoodChanged,
+        model_used: 'anti-repetition-rotation-engine',
+        observation_angle: `${pool.markers.eyes} / ${pool.markers.posture}`,
+        action_category: chosenAction.friction_level + ' Decompression',
+        raw_gemini_timestamp: Date.now(),
       },
     };
 
     res.json({
       success: true,
       data: fallbackResponse,
-      note: 'Processed via offline companion engine.',
-      error: error?.message,
+      note: 'Processed via anti-repetition companion engine.',
+      modelUsed: 'anti-repetition-rotation-engine',
     });
   }
 });

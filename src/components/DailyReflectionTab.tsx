@@ -27,6 +27,7 @@ import {
   Bell,
   AlertOctagon,
   Sliders,
+  RefreshCw,
 } from 'lucide-react';
 import { DecryptedEntry, GraphNodeType, GeolocationData } from '../types';
 import { textToSpeech } from '../services/speech';
@@ -45,6 +46,7 @@ interface DailyReflectionTabProps {
     location?: GeolocationData
   ) => Promise<DecryptedEntry>;
   onDeleteEntry: (id: string) => Promise<void>;
+  onRegenerateInsight?: (id: string) => Promise<void>;
   isProcessing: boolean;
   onAddMicroAction?: (task: string, frictionLevel: 'Micro' | 'Low' | 'Medium') => void;
 }
@@ -67,6 +69,7 @@ export const DailyReflectionTab: React.FC<DailyReflectionTabProps> = ({
   entries,
   onSaveEntry,
   onDeleteEntry,
+  onRegenerateInsight,
   isProcessing,
   onAddMicroAction,
 }) => {
@@ -82,8 +85,19 @@ export const DailyReflectionTab: React.FC<DailyReflectionTabProps> = ({
   const [isLocationPickerOpen, setIsLocationPickerOpen] = useState(false);
   const [isLocating, setIsLocating] = useState(false);
   const [isNotificationModalOpen, setIsNotificationModalOpen] = useState(false);
+  const [regeneratingId, setRegeneratingId] = useState<string | null>(null);
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const handleRegenerate = async (id: string) => {
+    if (!onRegenerateInsight || regeneratingId) return;
+    setRegeneratingId(id);
+    try {
+      await onRegenerateInsight(id);
+    } finally {
+      setRegeneratingId(null);
+    }
+  };
 
   // Quick toggle location picker map
   const handleToggleLocationPicker = () => {
@@ -669,6 +683,16 @@ export const DailyReflectionTab: React.FC<DailyReflectionTabProps> = ({
                     </div>
 
                     <div className="flex items-center gap-1.5">
+                      {onRegenerateInsight && (
+                        <button
+                          onClick={() => handleRegenerate(entry.id)}
+                          disabled={regeneratingId === entry.id || isProcessing}
+                          title="Re-synthesize with fresh, dynamic AI analysis"
+                          className="p-1.5 text-neutral-400 hover:text-cyan-300 rounded-lg hover:bg-neutral-800 transition disabled:opacity-50"
+                        >
+                          <RefreshCw className={`w-4 h-4 ${regeneratingId === entry.id ? 'animate-spin text-cyan-400' : ''}`} />
+                        </button>
+                      )}
                       <button
                         onClick={() =>
                           handlePlayTTS(entry.aiInsight?.summary || entry.plaintext)
@@ -687,6 +711,24 @@ export const DailyReflectionTab: React.FC<DailyReflectionTabProps> = ({
                       </button>
                     </div>
                   </div>
+
+                  {/* Stale Boilerplate Upgrade Banner */}
+                  {entry.aiInsight?.summary?.includes('You processed meaningful thoughts today regarding') && onRegenerateInsight && (
+                    <div className="flex items-center justify-between p-2.5 rounded-xl bg-amber-950/40 border border-amber-800/60 text-xs text-amber-200">
+                      <span className="flex items-center gap-1.5">
+                        <Sparkles className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                        Generic fallback detected from earlier version.
+                      </span>
+                      <button
+                        onClick={() => handleRegenerate(entry.id)}
+                        disabled={regeneratingId === entry.id || isProcessing}
+                        className="px-2.5 py-1 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 font-medium transition flex items-center gap-1.5 text-xs shadow-sm"
+                      >
+                        <RefreshCw className={`w-3 h-3 ${regeneratingId === entry.id ? 'animate-spin' : ''}`} />
+                        Upgrade Synthesis
+                      </button>
+                    </div>
+                  )}
 
                   {/* Summary Preview */}
                   {entry.aiInsight?.summary && (
